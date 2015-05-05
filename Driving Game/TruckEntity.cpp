@@ -7,7 +7,7 @@
 #define REVERSE_POWER 0.0013f
 #define DRAG_FORCE 0.999f
 
-#define FRICTION_FORCE 0.0003f
+#define FRICTION_FORCE 0.000003f
 #define BRAKING_POWER 0.0020f
 
 vec3 getMaxHeightAtEnd(vec3 position, vec3 direction, vec3 direction_cross /* Pointing directly towards the side of the vehicle*/, float width, float length);
@@ -41,6 +41,10 @@ void TruckEntity::Update(double TIME_STEP_SIZE)
 		isBraking = false;
 	}
 
+	/*
+
+	//This naive approach to friction messes up hill physics
+	//But also, we haven't taken velocity changes caused by hitting a hill into account
 	if (terrainTimeout > 0 && glm::length(velV) != 0)
 	{
 		float friction = FRICTION_FORCE;
@@ -53,7 +57,7 @@ void TruckEntity::Update(double TIME_STEP_SIZE)
 			velV = vec3(0, 0, 0);
 		else
 			engineV -= normalize(velV) * friction; //"friction" slows down moving objects
-	}
+	}*/
 
 	vec3 a = calculateAcceleration_simple();
 
@@ -70,11 +74,11 @@ void TruckEntity::Update(double TIME_STEP_SIZE)
 	//Calculate the weight distribution
 	//
 	float weight_dist;
-	if (dot(engineV, velV) > 0) { //Vectors are pointing towards the same direction
-		weight_dist = glm::length(engineV);
+	if (dot(a, velV) > 0) { //Vectors are pointing towards the same direction
+		weight_dist = glm::length(a);
 	}
 	else { //Vectors are pointing in opposite directions
-		weight_dist = -glm::length(engineV);
+		weight_dist = -glm::length(a);
 	}
 
 	//
@@ -152,7 +156,7 @@ vec3 TruckEntity::calculateAcceleration_simple()
 	}
 	else
 	{
-		F_dir = normalize(dir);
+		F_dir = dir;
 	}
 
 	float len = getLength(); float width = getWidth(); float height = getHeight();
@@ -200,6 +204,7 @@ vec3 TruckEntity::calculateAcceleration_simple()
 
 		//
 		//Some applied maths to calculate the upward and forward forces
+		//Theta is the angle of the slope
 		//
 		float sin_theta = diff_in_height / distance_between_heights;
 		float cos_theta = glm::sqrt(1 - sin_theta * sin_theta);
@@ -209,10 +214,11 @@ vec3 TruckEntity::calculateAcceleration_simple()
 		float accel_forward = (f_mag * cos_theta) - (g_mag * cos_theta * sin_theta);
 		float accel_downward = (f_mag * sin_theta) + (g_mag * cos_theta * cos_theta) - g_mag;
 
-		if (diff_in_height > 0) {
-			printf("%f\n", accel_forward);
-		}
+
+		printf("%f , %f = ", F_dir.x, F_dir.z);
+		printf("%f , %f\n", dir.x, dir.z);
 		acceleration += vec3(F_dir.x * accel_forward, accel_downward, F_dir.z * accel_forward) / mass;
+
 
 		//Can only accelerate while on the terrain
 		return acceleration;
